@@ -6,6 +6,7 @@ from proyectiles import *
 from trafico import *
 from mapa import *
 from obstaculos import *
+from Control import *
 
 pygame.init()
 
@@ -16,6 +17,9 @@ pygame.display.set_caption("Desert Mayhem")
 Idle = pygame.mixer.Sound('Sound/TruckIdle2.wav')
 Drive = pygame.mixer.Sound('Sound/TankAccelerate2.wav')
 Explode = pygame.mixer.Sound('Sound/BOOM.wav')
+TankShoot = pygame.mixer.Sound('Sound/TankFire.wav')
+ShellBoom = pygame.mixer.Sound('Sound/CarExplode.wav')
+DroneCrush = pygame.mixer.Sound('Sound/DroneCrash.wav')
 revChannel1 = pygame.mixer.Channel(1)
 revChannel2 = pygame.mixer.Channel(2)
 revChannel3 = pygame.mixer.Channel(3)
@@ -51,6 +55,8 @@ pantalla = pygame.display.set_mode((Largo_pantalla, Alto_pantalla))
 
 ListaDrones = pygame.sprite.Group()
 ListaMinas = pygame.sprite.Group()
+ListaBalasP1 = pygame.sprite.Group()
+ListaBalasP2 = pygame.sprite.Group()
 ListaSprites = pygame.sprite.Group()
 
 # Definicion de reloj
@@ -104,21 +110,31 @@ def Mapa1():
     """Esta funcion elige una pista al azar"""
     Pista = random.choice([Mapa("Image/PistaTres.png", 2,2, (16,366),(6,326), 3),Mapa("Image/PistaDos.png", 2,2, (16,366),(6,326), 2),Mapa("Image/PistaUno.png", 20,20, (30,280),(20,250), 1)])
     Player_count(Pista)
-    
+
+def MapaSiguiente(ListaConParametros):
+    if len(ListaConParametros) == 4:
+        Pista = random.choice([Mapa("Image/PistaTres.png", 2,2, (16,366),(6,326), 3),Mapa("Image/PistaDos.png", 2,2, (16,366),(6,326), 2),Mapa("Image/PistaUno.png", 20,20, (30,280),(20,250), 1)])
+        Jugador1 = Jugador("Image/JugadorUno.png", Pista.P1start_position[0], Pista.P1start_position[1])
+        Jugador2 = Jugador("Image/JugadorDos.png", Pista.P2start_position[0], Pista.P2start_position[1])
+        game_loop([Jugador1,Jugador2], Pista, ListaConParametros[1], ListaConParametros[2],ListaConParametros[3])
+    else:
+        Pista = random.choice([Mapa("Image/PistaTres.png", 2,2, (16,366),(6,326), 3),Mapa("Image/PistaDos.png", 2,2, (16,366),(6,326), 2),Mapa("Image/PistaUno.png", 20,20, (30,280),(20,250), 1)])
+        Jugador1 = Jugador("Image/JugadorUno.png", Pista.P1start_position[0], Pista.P1start_position[1])
+        game_loop([Jugador1], Pista, ListaConParametros[1], ListaConParametros[2])
 
 def UnJugador(Arena):
     """Funcion para generar 1 jugador"""
     Pista = Arena[0]
     Jugador1 = Jugador("Image/JugadorUno.png", Pista.P1start_position[0], Pista.P1start_position[1])
     P2 = False
-    game_loop([Jugador1], Pista, 0, 0)
+    game_loop([Jugador1], Pista)
 
 def DosJugadores(Arena):
     """Funcion para generar 2 jugadores"""
     Pista = Arena[0]
     Jugador1 = Jugador("Image/JugadorUno.png", Pista.P1start_position[0], Pista.P1start_position[1])
     Jugador2 = Jugador("Image/JugadorDos.png", Pista.P2start_position[0], Pista.P2start_position[1])
-    game_loop([Jugador1, Jugador2], Pista,0 , 0)
+    game_loop([Jugador1, Jugador2], Pista)
     
 # Funcion para el menu principal
 
@@ -178,10 +194,38 @@ def gameFinish(text):
         MenuIntro.button("Salir",Largo_pantalla*0.5+150,Alto_pantalla/2,200,50,Rojo_oscuro,Rojo_claro, gameQuit)
         pygame.display.update()
         Clock.tick(15)
-        
+
+def gameContinue(text, players, GamesCounter,score1 = None,score2 = None):
+    Continuar = True
+    if score2 != None:
+        while Continuar:
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    gameQuit()
+            pantalla.fill(Blanco)
+            MenuIntro.title(text)
+            MenuIntro.button("Continuar",Largo_pantalla*0.5-350,Alto_pantalla/2,200,50,Verde_oscuro,Verde_claro, MapaSiguiente, [players, GamesCounter, score1, score2])
+            MenuIntro.button("Menu Principal",Largo_pantalla*0.5-100,Alto_pantalla/2,200,50,Azul_oscuro,Azul_claro, game_intro)
+            MenuIntro.button("Salir",Largo_pantalla*0.5+150,Alto_pantalla/2,200,50,Rojo_oscuro,Rojo_claro, gameQuit)
+            pygame.display.update()
+            Clock.tick(15)
+    else:
+        while Continuar:
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    gameQuit()
+            pantalla.fill(Blanco)
+            MenuIntro.title(text)
+            MenuIntro.button("Continuar",Largo_pantalla*0.5-350,Alto_pantalla/2,200,50,Verde_oscuro,Verde_claro, MapaSiguiente, [players, GamesCounter, score1])
+            MenuIntro.button("Menu Principal",Largo_pantalla*0.5-100,Alto_pantalla/2,200,50,Azul_oscuro,Azul_claro, game_intro)
+            MenuIntro.button("Salir",Largo_pantalla*0.5+150,Alto_pantalla/2,200,50,Rojo_oscuro,Rojo_claro, gameQuit)
+            pygame.display.update()
+            Clock.tick(15)
+
 # Funcion para el bucle principal
 
-def game_loop(players, Pista, score1, score2):
+def game_loop(players, Pista, GamesCounter = None, score1 = None, score2 = None):
+
 
     # Aqui se definen algunas variables que se utilizaran en el juego
     gameExit = False
@@ -191,8 +235,23 @@ def game_loop(players, Pista, score1, score2):
     P1Laps = 0
     PlayersCrashed = 0
     CrashMax = 1
-    PuntuacionP1 = score1
-    MaxLaps = 2
+    last_bullet_P1 = True
+    if score1 != None:
+        PuntuacionP1 = score1
+    else:
+        PuntuacionP1 = 0
+    MaxLaps = 3
+
+    if GamesCounter != None:
+        ContadorPartidas = GamesCounter
+    else:
+        ContadorPartidas = 0
+
+    # Se define la hora inicial para el tiempo
+
+    T0 = time.time()
+
+##    Reloj = pygame.time.get_ticks()/1000
 
     # Aqui se generan los obstaculos
     for i in range(random.randint(2,32)):
@@ -205,7 +264,10 @@ def game_loop(players, Pista, score1, score2):
     # Verifica si son dos jugadores y "activa" al segundo jugador
     if len(players) == 2:
         P2 = True
-        PuntuacionP2 = 0
+        if score2 != None:
+            PuntuacionP2 = score2
+        else:
+            PuntuacionP2 = 0
         CrashMax = 2
         
     # Variables especificas para el jugador 2, si esta activado
@@ -213,6 +275,7 @@ def game_loop(players, Pista, score1, score2):
         P2vuelta = False
         P2Crashed = False
         P2Laps = 0
+        last_bullet_P2 = True
     # Instancias de jugadores
     Jugador1 = players[0]
 ##    ListaSprites.add(Jugador1)
@@ -224,76 +287,155 @@ def game_loop(players, Pista, score1, score2):
     # Se definen los drones para el mapa 1
 
     if Pista.mapnum == 1:
-        Trafico1 = Dummy(pantalla,0, 30, 240)
+        Trafico1 = Dummy(pantalla,0, 30, 140)
         Trafico2 = Dummy(pantalla,180, 760,280)
         Trafico3 = Dummy(pantalla,270,155, 500)
-        Trafico4 = Dummy(pantalla,90,400, 50)
+        Trafico4 = Dummy(pantalla,90,400, 60)
+        Trafico5 = Dummy(pantalla,0, 50, 190)
+        Trafico6 = Dummy(pantalla,180, 760,330)
+        Trafico7 = Dummy(pantalla,270,205, 480)
+        Trafico8 = Dummy(pantalla,90,450, 80)
         ListaDrones.add(Trafico1)
         ListaDrones.add(Trafico2)
         ListaDrones.add(Trafico3)
         ListaDrones.add(Trafico4)
+        ListaDrones.add(Trafico5)
+        ListaDrones.add(Trafico6)
+        ListaDrones.add(Trafico7)
+        ListaDrones.add(Trafico8)
         ListaSprites.add(Trafico1)
         ListaSprites.add(Trafico2)
         ListaSprites.add(Trafico3)
         ListaSprites.add(Trafico4)
+        ListaSprites.add(Trafico5)
+        ListaSprites.add(Trafico6)
+        ListaSprites.add(Trafico7)
+        ListaSprites.add(Trafico8)
     # Se definen los drones para el mapa 2
     if Pista.mapnum == 2:
-        Trafico1 = Dummy(pantalla,0,35, 300)
+        Trafico1 = Dummy(pantalla,0,35, 100)
         Trafico2 = Dummy(pantalla ,90,500,30)
         Trafico3 = Dummy(pantalla ,180,735,300)
         Trafico4 = Dummy(pantalla ,270,500,550)
+        Trafico5 = Dummy(pantalla,0,35, 150)
+        Trafico6 = Dummy(pantalla ,90,550,30)
+        Trafico7 = Dummy(pantalla ,180,735,350)
+        Trafico8 = Dummy(pantalla ,270,550,550)
         ListaDrones.add(Trafico1)
         ListaDrones.add(Trafico2)
         ListaDrones.add(Trafico3)
         ListaDrones.add(Trafico4)
+        ListaDrones.add(Trafico5)
+        ListaDrones.add(Trafico6)
+        ListaDrones.add(Trafico7)
+        ListaDrones.add(Trafico8)
         ListaSprites.add(Trafico1)
         ListaSprites.add(Trafico2)
         ListaSprites.add(Trafico3)
         ListaSprites.add(Trafico4)
+        ListaSprites.add(Trafico5)
+        ListaSprites.add(Trafico6)
+        ListaSprites.add(Trafico7)
+        ListaSprites.add(Trafico8)
     if Pista.mapnum == 3:
-        Trafico1 = Dummy(pantalla ,0,35,300)
+        Trafico1 = Dummy(pantalla ,0,35,100)
         Trafico2 = Dummy(pantalla ,90,400,30)
         Trafico3 = Dummy(pantalla ,180,735,300)
         Trafico4 = Dummy(pantalla ,270,500,550)
+        Trafico5 = Dummy(pantalla ,0,35,150)
+        Trafico6 = Dummy(pantalla ,90,450,30)
+        Trafico7 = Dummy(pantalla ,180,735,350)
+        Trafico8 = Dummy(pantalla ,270,550,550)
         ListaDrones.add(Trafico1)
         ListaDrones.add(Trafico2)
         ListaDrones.add(Trafico3)
         ListaDrones.add(Trafico4)
+        ListaDrones.add(Trafico5)
+        ListaDrones.add(Trafico6)
+        ListaDrones.add(Trafico7)
+        ListaDrones.add(Trafico8)
         ListaSprites.add(Trafico1)
         ListaSprites.add(Trafico2)
         ListaSprites.add(Trafico3)
         ListaSprites.add(Trafico4)
+        ListaSprites.add(Trafico5)
+        ListaSprites.add(Trafico6)
+        ListaSprites.add(Trafico7)
+        ListaSprites.add(Trafico8)
         
     while not gameExit:
+        Joystick = Control()
+        T1 = time.time()
+        dt = 180 - int(T1 - T0)
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
+                gameExit = not gameExit
                 pygame.quit()
                 quit()
         # Logica del juego, aqui se controlan las vueltas que cada jugador ha completado, y lo que pasa cuando un jugador completa la carrera o si ambos jugadores se estrellan
+        if int(dt) == 0:
+            gameExit = not gameExit
+            gameFinish('Se acabo el tiempo.')
         if PlayersCrashed == CrashMax:
             revChannel1.stop()
             ListaDrones.empty()
             ListaSprites.empty
             ListaMinas.empty()
             if P2 == True:
+                gameExit = not gameExit
                 gameFinish('Nadie Gana :(')
             else:
+                gameExit = not gameExit
                 gameFinish('Perdiste')
         if P2 == True:
             if P1Laps > MaxLaps:
                 PuntuacionP1 += 400
-                if PuntuacionP1 > PuntuacionP2:
-                    gameFinish('Rojo Gana!')
-                elif PuntuacionP2 > PuntuacionP1:
-                    gameFinish('Azul Gana!')
+                if ContadorPartidas == 2:
+                    if PuntuacionP1 > PuntuacionP2:
+                        revChannel1.stop()
+                        ListaDrones.empty()
+                        ListaSprites.empty()
+                        ListaMinas.empty()
+                        gameExit = not gameExit
+                        gameFinish('Rojo Gana!')
+                    elif PuntuacionP2 > PuntuacionP1:
+                        revChannel1.stop()
+                        ListaDrones.empty()
+                        ListaSprites.empty()
+                        ListaMinas.empty()
+                        gameExit = not gameExit
+                        gameFinish('Azul Gana!')
+                else:
+                    gameContinue('Rojo va ganando.', [Jugador1,Jugador2], ContadorPartidas+1,PuntuacionP1,PuntuacionP2)
             if P2Laps > MaxLaps:
                 PuntuacionP2 += 400
-                if PuntuacionP1 > PuntuacionP2:
-                    gameFinish('Rojo Gana!')
-                elif PuntuacionP2 > PuntuacionP1:
-                    gameFinish('Azul Gana!')
+                if ContadorPartidas == 2:
+                    if PuntuacionP1 > PuntuacionP2:
+                        revChannel1.stop()
+                        ListaDrones.empty()
+                        ListaSprites.empty()
+                        ListaMinas.empty()
+                        gameExit = not gameExit
+                        gameFinish('Rojo Gana!')
+                    elif PuntuacionP2 > PuntuacionP1:
+                        revChannel1.stop()
+                        ListaDrones.empty()
+                        ListaSprites.empty()
+                        ListaMinas.empty()
+                        gameExit = not gameExit
+                        gameFinish('Azul Gana!')
+                else:
+                    gameContinue('Azul va ganando.', [Jugador1,Jugador2], ContadorPartidas+1,PuntuacionP1,PuntuacionP2)
         elif P1Laps == MaxLaps:
-            gameFinish('Completado!')
+            gameExit = not gameExit
+            if ContadorPartidas == 2:
+                gameFinish('Tu puntuacion fue de: '+ str(PuntuacionP1))
+            else:
+                revChannel1.stop()
+                ListaDrones.empty()
+                ListaSprites.empty()
+                ListaMinas.empty()
+                gameContinue('Pista completada', [Jugador1], ContadorPartidas+1,PuntuacionP1)
         if pantalla.get_at((int(Jugador1.x),int(Jugador1.y))) == Linea_Mitad:
             P1vuelta = True
         if (P1vuelta == True) and (pantalla.get_at((int(Jugador1.x),int(Jugador1.y))) == Linea_Meta):
@@ -308,67 +450,28 @@ def game_loop(players, Pista, score1, score2):
                 P2Laps += 1
                 P2vuelta = False
 
-        ## Control para los drones, cuando encuentran una linea, giran hacia la direccion indicada
-##        if Trafico1.direction == 0 or Trafico1.direction == 360 or Trafico1.direction == 180:
-##            if pantalla.get_at((Trafico1.x,Trafico1.y)) == Derecha_Horizontal:
-##                Trafico1.steerleft()
-##            if pantalla.get_at((Trafico1.x,Trafico1.y)) == Izquierda_Horizontal:
-##                Trafico1.steerright()
-##        if Trafico1.direction == 270 or Trafico1.direction == 90:
-##            if pantalla.get_at((Trafico1.x,Trafico1.y)) == Derecha_Vertical:
-##                Trafico1.steerleft()
-##            if pantalla.get_at((Trafico1.x,Trafico1.y)) == Izquierda_Vertical:
-##                Trafico1.steerright()
-##        if Trafico2.direction == 0 or Trafico2.direction == 360 or Trafico2.direction == 180:
-##            if pantalla.get_at((Trafico2.x,Trafico2.y)) == Derecha_Horizontal:
-##                Trafico2.steerleft()
-##            if pantalla.get_at((Trafico2.x,Trafico2.y)) == Izquierda_Horizontal:
-##                Trafico2.steerright()
-##        if Trafico2.direction == 270 or Trafico2.direction == 90:
-##            if pantalla.get_at((Trafico2.x,Trafico2.y)) == Derecha_Vertical:
-##                Trafico2.steerleft()
-##            if pantalla.get_at((Trafico2.x,Trafico2.y)) == Izquierda_Vertical:
-##                Trafico2.steerright()
-##        if Trafico3.direction == 0 or Trafico3.direction == 360 or Trafico3.direction == 180:
-##            if pantalla.get_at((Trafico3.x,Trafico3.y)) == Derecha_Horizontal:
-##                Trafico3.steerleft()
-##            if pantalla.get_at((Trafico3.x,Trafico3.y)) == Izquierda_Horizontal:
-##                Trafico3.steerright()
-##        if Trafico3.direction == 270 or Trafico3.direction == 90:
-##            if pantalla.get_at((Trafico3.x,Trafico3.y)) == Derecha_Vertical:
-##                Trafico3.steerleft()
-##            if pantalla.get_at((Trafico3.x,Trafico3.y)) == Izquierda_Vertical:
-##                Trafico3.steerright()
-##        if Trafico4.direction == 0 or Trafico4.direction == 360 or Trafico4.direction == 180:
-##            if pantalla.get_at((Trafico4.x,Trafico4.y)) == Derecha_Horizontal:
-##                Trafico4.steerleft()
-##            if pantalla.get_at((Trafico4.x,Trafico4.y)) == Izquierda_Horizontal:
-##                Trafico4.steerright()
-##        if Trafico4.direction == 270 or Trafico4.direction == 90:
-##            if pantalla.get_at((Trafico4.x,Trafico4.y)) == Derecha_Vertical:
-##                Trafico4.steerleft()
-##            if pantalla.get_at((Trafico4.x,Trafico4.y)) == Izquierda_Vertical:
-##                Trafico4.steerright()
-
         ## Controles de los jugadores, se definen las teclas que realizan cada accion; si se estrellan, se deshabilitan los controles.
         keys = pygame.key.get_pressed()
 
         lista_impacto_minas_P1 = pygame.sprite.spritecollide(Jugador1, ListaMinas, True)
         if P2 == True:
             lista_impacto_minas_P2 = pygame.sprite.spritecollide(Jugador2, ListaMinas, True)
-        lista_impacto_drones_P1 = pygame.sprite.spritecollide(Jugador1, ListaDrones, True)
-        print(lista_impacto_drones_P1)
-
+            
         # Jugador 1
         if P1Crashed != True:
             # Girar a la izquierda
-            if keys[K_a]:
+            if (keys[K_q] or Joystick == b'10\r\n') and last_bullet_P1:
+                Shoot1 = Bullet(pantalla, Jugador1.x, Jugador1.y, Jugador1.direction)
+                ListaBalasP1.add(Shoot1)
+                last_bullet_P1 = False
+                revChannel2.play(TankShoot)
+            if keys[K_a] or Joystick == b'2\r\n':
                 Jugador1.steerleft()
             # Girar a la derecha
-            if keys[K_d]:
+            if keys[K_d] or Joystick == b'1\r\n':
                 Jugador1.steerright()
             # Acelerar
-            if keys[K_w]:
+            if keys[K_w] or Joystick == b'3\r\n':
                 PuntuacionP1 += 2
                 revChannel1.play(Drive)
                 Jugador1.accelerate()
@@ -377,7 +480,7 @@ def game_loop(players, Pista, score1, score2):
                     revChannel1.play(Idle)
                 Jugador1.soften() # Neutro
             # Reversa
-            if keys[K_s]:
+            if keys[K_s] or Joystick == b'4\r\n':
                 Jugador1.deaccelerate()
             if pantalla.get_at((int(Jugador1.x),int(Jugador1.y))) == Amarillo_arena:
                     PuntuacionP1 -= 8
@@ -392,14 +495,19 @@ def game_loop(players, Pista, score1, score2):
         if P2 == True:
             # Jugador 2
             if P2Crashed != True:
+                if (keys[K_o] or Joystick == b'11\r\n') and last_bullet_P2:
+                    Shoot2 = Bullet(pantalla, Jugador2.x, Jugador2.y, Jugador2.direction)
+                    ListaBalasP2.add(Shoot2)
+                    last_bullet_P2 = False
+                    revChannel2.play(TankShoot)
                 # Girar a la izquierda
-                if keys[K_j]:
+                if keys[K_j] or Joystick == b'6\r\n':
                     Jugador2.steerleft()
                 # Girar a la derecha
-                if keys[K_l]:
+                if keys[K_l] or Joystick == b'5\r\n':
                     Jugador2.steerright()
                 # Acelerar
-                if keys[K_i]:
+                if keys[K_i] or Joystick == b'7\r\n':
                     PuntuacionP2 += 2
                     revChannel3.play(Drive)
                     Jugador2.accelerate()
@@ -408,7 +516,7 @@ def game_loop(players, Pista, score1, score2):
                         revChannel3.play(Idle)
                     Jugador2.soften() # Neutro
                 # Reversa
-                if keys[K_k]:
+                if keys[K_k] or Joystick == b'8\r\n':
                     Jugador2.deaccelerate()
                 if pantalla.get_at((int(Jugador2.x),int(Jugador2.y))) == Amarillo_arena:
                     PuntuacionP2 -= 8
@@ -421,6 +529,8 @@ def game_loop(players, Pista, score1, score2):
                     PuntuacionP2 -= 400
                     Jugador2.speed = 0
         # Aqui se maneja el movimiento de los sprites
+        if Joystick == b'9\r\n':
+            pass
         if P1Crashed != True:
             Jugador1.update()
         if P2 == True:
@@ -430,7 +540,29 @@ def game_loop(players, Pista, score1, score2):
         Trafico2.update(Trafico2.x,Trafico2.y)
         Trafico3.update(Trafico3.x,Trafico3.y)
         Trafico4.update(Trafico4.x,Trafico4.y)
-
+        Trafico5.update(Trafico5.x,Trafico5.y)
+        Trafico6.update(Trafico6.x,Trafico6.y)
+        Trafico7.update(Trafico7.x,Trafico7.y)
+        Trafico8.update(Trafico8.x,Trafico8.y)
+        ListaBalasP1.update()
+        if P2 == True:
+            ListaBalasP2.update()
+        lista_impacto_drones_P1 = pygame.sprite.spritecollide(Jugador1, ListaDrones, True)
+        if P2 == True:
+            lista_impacto_drones_P2 = pygame.sprite.spritecollide(Jugador2, ListaDrones, True)
+        lista_impacto_balas_P1 = pygame.sprite.groupcollide(ListaBalasP1, ListaDrones, True, True)
+        for BOOM in lista_impacto_balas_P1:
+            revChannel2.play(ShellBoom)
+            PuntuacionP1 += 400
+        if P2 == True:
+            lista_impacto_balas_P2 = pygame.sprite.groupcollide(ListaBalasP2, ListaDrones, True, True)
+            for BOOM in lista_impacto_balas_P2:
+                revChannel2.play(ShellBoom)
+                PuntuacionP2 += 400
+        lista_impacto_minasYbalas_P1 = pygame.sprite.groupcollide(ListaBalasP1, ListaMinas, True, True)
+        if P2 == True:
+            lista_impacto_minasYbalas_P2 = pygame.sprite.groupcollide(ListaBalasP2, ListaMinas, True, True)
+##    
 ##        print(Clock.get_time)
 ##        print("score1:", PuntuacionP1)
 ##        print(ListaMinas.sprites())
@@ -447,6 +579,29 @@ def game_loop(players, Pista, score1, score2):
 ##        print(Trafico4.direction)
 ##        print(pantalla.get_at((Trafico2.x,Trafico2.y)))
 ##        print(pantalla.get_at((Trafico3.x,Trafico3.y)))
+##        print(dt)
+##        print(ListaBalasP1.sprites())
+        if len(ListaBalasP1) == 0:
+            last_bullet_P1 = True
+        if P2 == True:
+            if len(ListaBalasP2) == 0:
+                last_bullet_P2 = True
+
+        for Balas in lista_impacto_minasYbalas_P1:
+            revChannel2.play(Explode)
+        if P2 == True:
+            for Balas in lista_impacto_minasYbalas_P2:
+                revChannel2.play(Explode)
+
+        if P1Crashed != True:
+            for Dron in lista_impacto_drones_P1:
+                revChannel2.play(DroneCrush)
+                PuntuacionP1 += 100
+        if P2 == True:
+            if P2Crashed != True:
+                for Dron in lista_impacto_drones_P2:
+                    revChannel2.play(DroneCrush)
+                    PuntuacionP2 += 100
 
         
         # Aqui se realiza lo que es dibujo en la pantalla del juego y el reloj 
@@ -458,6 +613,7 @@ def game_loop(players, Pista, score1, score2):
         if Pista.mapnum == 1:
             MenuIntro.ScoreDisplay(280, 155,"Jugador 1:",int(PuntuacionP1))
             MenuIntro.ScoreDisplay(520, 155, "Vueltas 3/", P1Laps)
+            MenuIntro.ScoreDisplay(400, 195, "Tiempo:", int(dt))
             if P2 == True:
                 MenuIntro.ScoreDisplay(280, 175,"Jugador 2:",PuntuacionP2)
                 MenuIntro.ScoreDisplay(520, 175, "Vueltas 3/", P2Laps)
@@ -465,6 +621,7 @@ def game_loop(players, Pista, score1, score2):
         if Pista.mapnum == 2:
             MenuIntro.ScoreDisplay(280, 155,"Jugador 1:",int(PuntuacionP1))
             MenuIntro.ScoreDisplay(520, 155, "Vueltas 3/", P1Laps)
+            MenuIntro.ScoreDisplay(400, 195, "Tiempo:", int(dt))
             if P2 == True:
                 MenuIntro.ScoreDisplay(280, 175,"Jugador 2:",PuntuacionP2)
                 MenuIntro.ScoreDisplay(520, 175, "Vueltas 3/", P2Laps)
@@ -472,6 +629,7 @@ def game_loop(players, Pista, score1, score2):
         if Pista.mapnum == 3:
             MenuIntro.ScoreDisplay(280, 355,"Jugador 1:",int(PuntuacionP1))
             MenuIntro.ScoreDisplay(520, 355, "Vueltas 3/", P1Laps)
+            MenuIntro.ScoreDisplay(400, 395, "Tiempo:", int(dt))
             if P2 == True:
                 MenuIntro.ScoreDisplay(280, 375,"Jugador 2:",PuntuacionP2)
                 MenuIntro.ScoreDisplay(520, 375, "Vueltas 3/", P2Laps)
@@ -513,6 +671,9 @@ def game_loop(players, Pista, score1, score2):
             pantalla.blit(HorizontalIzquierda,(420,285))
         ListaMinas.draw(pantalla)
         ListaMinas.update()
+        ListaBalasP1.draw(pantalla)
+        if P2 == True:
+            ListaBalasP2.draw(pantalla)
         ListaDrones.draw(pantalla)
         JugadorSprite(Jugador1,Jugador1.x,Jugador1.y)
 ##        Dummyblit(Trafico1, Trafico1.x, Trafico1.y)

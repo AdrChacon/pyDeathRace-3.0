@@ -18,7 +18,7 @@ class Menu(pygame.sprite.Sprite):
         pygame.sprite.Sprite.__init__(self)
         self.Dw = Dw
         self.Dh = Dh
-        self.LargeText = pygame.font.Font('freesansbold.ttf', 90)
+        self.LargeText = pygame.font.Font('freesansbold.ttf', 60)
         self.smallText = pygame.font.Font('freesansbold.ttf', 20)
         self.pantalla = pantalla
 
